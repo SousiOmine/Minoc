@@ -148,18 +148,6 @@ export class OpenAIClient {
           content: message.content,
         });
       }
-      // tool_callはassistantメッセージとして扱い、tool_responseはuserメッセージとして扱う
-      else if (message.role === 'tool_call') {
-        openaiMessages.push({
-          role: 'assistant',
-          content: message.content,
-        });
-      } else if (message.role === 'tool_response') {
-        openaiMessages.push({
-          role: 'user',
-          content: message.content,
-        });
-      }
     }
 
     return openaiMessages;

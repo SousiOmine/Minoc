@@ -1,7 +1,7 @@
 /**
  * メッセージの役割
  */
-export type MessageRole = 'user' | 'assistant' | 'system' | 'tool_call' | 'tool_response';
+export type MessageRole = 'user' | 'assistant' | 'system';
 
 /**
  * メッセージの型定義

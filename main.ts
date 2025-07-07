@@ -160,25 +160,29 @@ class MinocApp {
           'LLMから応答を取得中',
           () => this.openaiClient!.chatCompletion(session.systemPrompt, session.messages)
         );
-
-        // 応答メッセージを記録
+        // LLMからの出力をassistantとして記録
         await this.historyRecorder.recordMessage(this.currentSessionId!, {
           role: 'assistant',
           content: response.content,
           timestamp: new Date().toISOString(),
           metadata: { usage: response.usage },
         });
-
-        // ツール呼び出しをチェック
-        const toolCall = this.toolExecutor.parseXmlToolCall(response.content);
-        if (toolCall) {
-          // ツール呼び出しを実行
-          await this.handleToolCall({
-            toolName: toolCall.toolName,
-            parameters: toolCall.parameters,
+        // 応答メッセージ内の <tool_call> ブロックを抽出
+        const allToolCalls = [...response.content.matchAll(/<tool_call>[\s\S]*?<\/tool_call>/g)];
+        if (allToolCalls.length > 1) {
+          // 複数ツール呼び出しエラーを即座に返す
+          await this.historyRecorder.recordMessage(this.currentSessionId!, {
+            role: 'user',
+            content: `<tool_response>{"success": false, "error": "複数のツールを同時に呼び出すことはできません"}</tool_response>`,
+            timestamp: new Date().toISOString(),
           });
-
-          // ツール呼び出しがあったので次のイテレーションを継続
+          continue;
+        } else if (allToolCalls.length === 1) {
+          const block = allToolCalls[0][0];
+          const parsed = this.toolExecutor.parseXmlToolCall(block);
+          if (parsed) {
+            await this.handleToolCall({ toolName: parsed.toolName, parameters: parsed.parameters }, block);
+          }
           continue;
         } else {
           // ツール呼び出しがない場合は通常の応答を表示してループ終了
@@ -197,11 +201,13 @@ class MinocApp {
     }
   }
 
+
+
   /**
    * ツール呼び出しを処理
    * @returns ツール実行が成功した場合true、失敗・拒否された場合false
    */
-  private async handleToolCall(toolCall: { toolName: string; parameters: Record<string, unknown> }): Promise<boolean> {
+  private async handleToolCall(toolCall: { toolName: string; parameters: Record<string, unknown> }, xmlString?: string): Promise<boolean> {
     if (!this.currentSessionId) return false;
 
     console.log(`\n🔧 ツール呼び出し: ${toolCall.toolName}`);
@@ -212,7 +218,7 @@ class MinocApp {
     if (!permissionResult.allowed) {
       console.log(`❌ ツール実行が拒否されました: ${permissionResult.reason}`);
       await this.historyRecorder.recordMessage(this.currentSessionId, {
-        role: 'tool_response',
+        role: 'user',
         content: `<tool_response>{"success": false, "error": "${permissionResult.reason}"}</tool_response>`,
         timestamp: new Date().toISOString(),
       });
@@ -233,7 +239,7 @@ class MinocApp {
         }
         
         await this.historyRecorder.recordMessage(this.currentSessionId, {
-          role: 'tool_response',
+          role: 'user',
           content: `<tool_response>{"success": false, "error": "ツール実行がユーザーによって拒否されました"}</tool_response>`,
           timestamp: new Date().toISOString(),
         });
@@ -259,16 +265,8 @@ class MinocApp {
     };
 
     const result = await this.toolExecutor.executeTool(toolCall, context);
-
-    // 結果を記録
     await this.historyRecorder.recordMessage(this.currentSessionId, {
-      role: 'tool_call',
-      content: `ツール: ${toolCall.toolName}\nパラメータ: ${JSON.stringify(toolCall.parameters, null, 2)}`,
-      timestamp: new Date().toISOString(),
-    });
-
-    await this.historyRecorder.recordMessage(this.currentSessionId, {
-      role: 'tool_response',
+      role: 'user',
       content: `<tool_response>${JSON.stringify(result, null, 2)}</tool_response>`,
       timestamp: new Date().toISOString(),
     });

@@ -40,13 +40,6 @@ export class HistoryRecorder implements IHistoryRecorder {
 
     this.activeSessions.set(sessionId, session);
     
-    // セッション開始を記録
-    await this.recordMessage(sessionId, {
-      role: 'system',
-      content: `セッション開始 - モデル: ${model}`,
-      timestamp,
-    });
-
     return sessionId;
   }
 
@@ -84,13 +77,6 @@ export class HistoryRecorder implements IHistoryRecorder {
 
     // メタデータを更新
     session.metadata = { ...session.metadata, ...metadata };
-
-    // セッション終了メッセージを記録
-    await this.recordMessage(sessionId, {
-      role: 'system',
-      content: `セッション終了 - 継続時間: ${metadata.duration}ms, トークン数: ${metadata.totalTokens}`,
-      timestamp: new Date().toISOString(),
-    });
 
     // ファイルに保存
     await this.saveSessionToFile(session);
