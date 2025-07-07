@@ -322,3 +322,59 @@ export class ListDirectoryTool extends BaseTool {
 
 
 } 
+
+/**
+ * 複数ファイル読み込みツール
+ */
+export class ReadMultipleFilesTool extends BaseTool {
+  override readonly name = 'read_files';
+  override readonly description = '複数のファイルの内容を読み込みます';
+  override readonly requiredParameters = ['paths'];
+
+  override async execute(parameters: ToolParameters, context?: ToolExecutionContext): Promise<ToolResult> {
+    try {
+      const paths = this.getParameter<Array<{ path: string }>>(parameters, 'paths');
+      if (!paths || paths.length === 0) {
+        return this.error('ファイルパスが指定されていません');
+      }
+
+      const results: Array<{ path: string; content?: string; error?: string; size?: number }> = [];
+      let successCount = 0;
+      let errorCount = 0;
+
+      for (const item of paths) {
+        const path = item.path;
+        const fullPath = context?.workingDirectory ? join(context.workingDirectory, path) : path;
+
+        try {
+          if (!await exists(fullPath)) {
+            results.push({ path, error: 'ファイルが見つかりません' });
+            errorCount++;
+            continue;
+          }
+
+          const stat = await Deno.stat(fullPath);
+          if (!stat.isFile) {
+            results.push({ path, error: '指定されたパスはファイルではありません' });
+            errorCount++;
+            continue;
+          }
+
+          const content = await Deno.readTextFile(fullPath);
+          results.push({ path, content, size: stat.size });
+          successCount++;
+        } catch (error) {
+          results.push({ path, error: `読み込みエラー: ${error instanceof Error ? error.message : String(error)}` });
+          errorCount++;
+        }
+      }
+
+      return this.success(
+        { paths: results, successCount, errorCount },
+        `${paths.length} 件中 ${successCount} 件のファイルを読み込みました (${errorCount} 件のエラー)`
+      );
+    } catch (error) {
+      return this.error(`複数ファイル読み込みエラー: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+} 

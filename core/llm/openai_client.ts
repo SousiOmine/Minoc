@@ -95,8 +95,14 @@ export class OpenAIClient {
             throw new Error('APIレスポンスが無効です');
           }
 
+          // LLMが空の応答を返した場合は再試行をトリガー
+          const content = choice.message.content || '';
+          if (content.trim().length === 0) {
+            throw new Error('空の応答を受信しました');
+          }
+
           return {
-            content: choice.message.content || '',
+            content: content,
             usage: response.usage ? {
               promptTokens: response.usage.prompt_tokens,
               completionTokens: response.usage.completion_tokens,
@@ -131,16 +137,26 @@ export class OpenAIClient {
     ];
 
     for (const message of messages) {
-      if (message.role === 'user' || message.role === 'assistant') {
+      if (message.role === 'user') {
         openaiMessages.push({
-          role: message.role,
+          role: 'user',
+          content: `<user_query>${message.content}</user_query>`,
+        });
+      } else if (message.role === 'assistant') {
+        openaiMessages.push({
+          role: 'assistant',
           content: message.content,
         });
       }
-      // tool_call や tool_response はassistantメッセージとして扱う
-      else if (message.role === 'tool_call' || message.role === 'tool_response') {
+      // tool_callはassistantメッセージとして扱い、tool_responseはuserメッセージとして扱う
+      else if (message.role === 'tool_call') {
         openaiMessages.push({
           role: 'assistant',
+          content: message.content,
+        });
+      } else if (message.role === 'tool_response') {
+        openaiMessages.push({
+          role: 'user',
           content: message.content,
         });
       }
@@ -154,6 +170,14 @@ export class OpenAIClient {
    */
   private convertError(error: unknown): ApiError {
     if (error instanceof Error) {
+      // 空の応答エラーは再試行可能とする
+      if (error.message.includes('空の応答')) {
+        return {
+          type: 'server',
+          message: error.message,
+          retryable: true,
+        };
+      }
       // OpenAI固有のエラー
       if ('status' in error) {
         const status = (error as any).status;
