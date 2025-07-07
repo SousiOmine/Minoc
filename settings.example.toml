@@ -1,0 +1,20 @@
+# Minoc アプリケーション設定例
+# このファイルをsettings.tomlとしてコピーして使用してください
+
+# デフォルトで使用するLLMモデル
+defaultModel = "gpt-4"
+
+# デバッグモード（詳細なログ出力）
+debug = false
+
+# 進捗表示の有効化
+showProgress = true
+
+# 進捗表示を開始する閾値（秒）
+progressThreshold = 5
+
+# ログレベル（DEBUG, INFO, WARN, ERROR）
+logLevel = "INFO"
+
+# 最大履歴保持数
+maxHistoryCount = 100 
