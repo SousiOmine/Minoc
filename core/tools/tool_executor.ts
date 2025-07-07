@@ -3,7 +3,7 @@ import { PermissionManager, type PermissionResult } from '../permission/permissi
 import { ConfigManager } from '../config/manager.ts';
 
 // 基本ツールのインポート
-import { ReadFileTool, WriteToFileTool, CreateDirectoryTool, SearchFilesTool } from './file_tools.ts';
+import { ReadFileTool, WriteToFileTool, CreateDirectoryTool, SearchFilesTool, ListDirectoryTool } from './file_tools.ts';
 import { ExecuteCommandTool } from './command_tool.ts';
 
 /**
@@ -37,6 +37,7 @@ export class ToolExecutor {
       new WriteToFileTool(),
       new CreateDirectoryTool(),
       new SearchFilesTool(),
+      new ListDirectoryTool(),
       new ExecuteCommandTool(),
     ];
 

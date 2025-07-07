@@ -77,7 +77,7 @@ class MinocApp {
     this.openaiClient = new OpenAIClient(agentConfig);
 
     // システムプロンプトを構築
-    const systemPrompt = buildSystemPrompt(modelConfig.customInstructions);
+    const systemPrompt = await buildSystemPrompt(modelConfig.customInstructions);
 
     // セッションを開始
     this.currentSessionId = await this.historyRecorder.startSession(selectedModel, systemPrompt);
@@ -213,7 +213,7 @@ class MinocApp {
       console.log(`❌ ツール実行が拒否されました: ${permissionResult.reason}`);
       await this.historyRecorder.recordMessage(this.currentSessionId, {
         role: 'tool_response',
-        content: `エラー: ${permissionResult.reason}`,
+        content: `<tool_response>{"success": false, "error": "${permissionResult.reason}"}</tool_response>`,
         timestamp: new Date().toISOString(),
       });
       return false;
@@ -234,7 +234,7 @@ class MinocApp {
         
         await this.historyRecorder.recordMessage(this.currentSessionId, {
           role: 'tool_response',
-          content: 'ツール実行がユーザーによって拒否されました',
+          content: `<tool_response>{"success": false, "error": "ツール実行がユーザーによって拒否されました"}</tool_response>`,
           timestamp: new Date().toISOString(),
         });
         
@@ -269,7 +269,7 @@ class MinocApp {
 
     await this.historyRecorder.recordMessage(this.currentSessionId, {
       role: 'tool_response',
-      content: `結果: ${JSON.stringify(result, null, 2)}`,
+      content: `<tool_response>${JSON.stringify(result, null, 2)}</tool_response>`,
       timestamp: new Date().toISOString(),
     });
 

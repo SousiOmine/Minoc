@@ -7,8 +7,8 @@
   "tasks": {
     "dev": "deno run --allow-read --allow-write --allow-run --allow-net --allow-env main.ts",
     "start": "deno run --allow-read --allow-write --allow-run --allow-net --allow-env main.ts",
-    "build": "deno compile --allow-read --allow-write --allow-run --allow-net --allow-env --output=minoc main.ts",
-    "install": "deno task build && echo バイナリファイル 'minoc' を作成しました。このファイルをPATHに追加するか、適切な場所に移動してください。",
+    "build": "deno compile --allow-read --allow-write --allow-run --allow-net --allow-env --output=dist/minoc main.ts",
+    "install": "deno task build && echo バイナリファイル 'dist/minoc' を作成しました。このファイルをPATHに追加するか、適切な場所に移動してください。",
     "test": "deno test --allow-read --allow-write --allow-run --allow-net --allow-env",
     "fmt": "deno fmt",
     "lint": "deno lint"

@@ -211,3 +211,114 @@ export class SearchFilesTool extends BaseTool {
     return new RegExp(`^${regex}$`, 'i');
   }
 } 
+
+/**
+ * ディレクトリ一覧取得ツール
+ */
+export class ListDirectoryTool extends BaseTool {
+  override readonly name = 'list_directory';
+  override readonly description = '指定されたディレクトリ内のファイル・フォルダ一覧を取得します（隠しファイル含む、詳細情報付き）';
+  override readonly requiredParameters = ['path'];
+
+  override async execute(parameters: ToolParameters, context?: ToolExecutionContext): Promise<ToolResult> {
+    try {
+      const path = this.getParameter<string>(parameters, 'path');
+      
+      const workingDir = context?.workingDirectory || Deno.cwd();
+      const targetDir = path === '.' ? workingDir : join(workingDir, path);
+
+      if (!await exists(targetDir)) {
+        return this.error(`ディレクトリが見つかりません: ${path}`);
+      }
+
+      const stat = await Deno.stat(targetDir);
+      if (!stat.isDirectory) {
+        return this.error(`指定されたパスはディレクトリではありません: ${path}`);
+      }
+
+      const entries: Array<{
+        name: string;
+        type: 'file' | 'directory';
+        path: string;
+        size?: number;
+        modified?: Date;
+      }> = [];
+
+      // 固定設定: recursive=false, showHidden=true, includeDetails=true
+      await this.listSingle(targetDir, entries, workingDir);
+
+      // 名前でソート（ディレクトリを先に、その後ファイル名順）
+      entries.sort((a, b) => {
+        if (a.type !== b.type) {
+          return a.type === 'directory' ? -1 : 1;
+        }
+        return a.name.localeCompare(b.name);
+      });
+
+      return this.success(
+        { 
+          path,
+          totalItems: entries.length,
+          directories: entries.filter(e => e.type === 'directory').length,
+          files: entries.filter(e => e.type === 'file').length,
+          entries 
+        },
+        `ディレクトリ '${path}' から ${entries.length} 個のアイテムを取得しました`
+      );
+    } catch (error) {
+      return this.error(`ディレクトリ一覧取得エラー: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  /**
+   * 単一階層のディレクトリ一覧を取得
+   */
+  private async listSingle(
+    dir: string,
+    entries: Array<{
+      name: string;
+      type: 'file' | 'directory';
+      path: string;
+      size?: number;
+      modified?: Date;
+    }>,
+    baseDir: string
+  ): Promise<void> {
+    try {
+      for await (const entry of Deno.readDir(dir)) {
+        const fullPath = join(dir, entry.name);
+        const relativePath = fullPath.replace(baseDir, '').replace(/^[/\\]/, '') || entry.name;
+
+        const item: {
+          name: string;
+          type: 'file' | 'directory';
+          path: string;
+          size?: number;
+          modified?: Date;
+        } = {
+          name: entry.name,
+          type: entry.isDirectory ? 'directory' : 'file',
+          path: relativePath,
+        };
+
+        // 詳細情報を取得（固定でtrue）
+        try {
+          const stat = await Deno.stat(fullPath);
+          if (entry.isFile) {
+            item.size = stat.size;
+          }
+          item.modified = stat.mtime || undefined;
+        } catch {
+          // ステータス取得に失敗した場合は詳細情報なしで追加
+        }
+
+        entries.push(item);
+      }
+    } catch (error) {
+      // ディレクトリアクセスエラーは無視して続行
+      console.warn(`ディレクトリアクセスエラー: ${dir} - ${error}`);
+    }
+  }
+
+
+} 
