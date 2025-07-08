@@ -110,7 +110,7 @@ export class ConfigManager {
         'reboot',
         'mkfs',
       ],
-      permissionLevel: 'normal',
+      permissionLevel: 'strict',
     };
 
     return this.loadConfig('permissions.toml', defaultSettings);

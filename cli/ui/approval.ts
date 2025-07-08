@@ -4,7 +4,7 @@ import type { PermissionResult } from '../../core/permission/permission_manager.
 /**
  * 承認選択肢
  */
-export type ApprovalChoice = 'allow_once' | 'allow_always' | 'deny' | 'deny_always';
+export type ApprovalChoice = 'allow_once' | 'allow_always' | 'deny';
 
 /**
  * 承認結果
@@ -55,11 +55,10 @@ export class ApprovalManager {
     console.log('  1) 今回だけ許可 (allow_once)');
     console.log('  2) 永続的に許可 (allow_always)');
     console.log('  3) 拒否 (deny)');
-    console.log('  4) 永続的に拒否 (deny_always)');
     console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
 
     while (true) {
-      const input = await this.getUserInput('選択してください (1-4): ');
+      const input = await this.getUserInput('選択してください (1-3): ');
       
       switch (input.trim()) {
         case '1':
@@ -68,10 +67,8 @@ export class ApprovalManager {
           return { choice: 'allow_always', remember: true };
         case '3':
           return { choice: 'deny', remember: false };
-        case '4':
-          return { choice: 'deny_always', remember: true };
         default:
-          console.log('❌ 無効な選択です。1-4の数字を入力してください。');
+          console.log('❌ 無効な選択です。1-3の数字を入力してください。');
       }
     }
   }
@@ -104,16 +101,38 @@ export class ApprovalManager {
    * ユーザー入力を取得
    */
   private async getUserInput(prompt: string): Promise<string> {
-    Deno.stdout.writeSync(new TextEncoder().encode(prompt));
+    // プロンプトを出力
+    await Deno.stdout.write(new TextEncoder().encode(prompt));
     
-    const buf = new Uint8Array(1024);
-    const n = await Deno.stdin.read(buf);
+    // 入力読み取り用のバッファ
+    const buffer = new Uint8Array(4096);
+    const bytesRead = await Deno.stdin.read(buffer);
     
-    if (n === null) {
+    if (bytesRead === null) {
       return '';
     }
     
-    return new TextDecoder().decode(buf.slice(0, n)).trim();
+    // Windowsのコンソールエンコーディングを考慮
+    let input: string;
+    
+    try {
+      // まずUTF-8でデコードを試行
+      const utf8Decoder = new TextDecoder('utf-8', { fatal: true });
+      input = utf8Decoder.decode(buffer.slice(0, bytesRead));
+    } catch {
+      try {
+        // UTF-8で失敗した場合、Shift_JIS（CP932）でデコード
+        const shiftJisDecoder = new TextDecoder('shift_jis');
+        input = shiftJisDecoder.decode(buffer.slice(0, bytesRead));
+      } catch {
+        // 最後の手段として、バイナリをそのまま処理
+        const fallbackDecoder = new TextDecoder('utf-8', { fatal: false });
+        input = fallbackDecoder.decode(buffer.slice(0, bytesRead));
+      }
+    }
+    
+    // 改行文字を削除して返す
+    return input.replace(/\r?\n$/, '').trim();
   }
 
   /**
@@ -177,8 +196,6 @@ export class ApprovalManager {
         return '永続的に許可';
       case 'deny':
         return '拒否';
-      case 'deny_always':
-        return '永続的に拒否';
       default:
         return '不明';
     }

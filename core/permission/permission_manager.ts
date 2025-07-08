@@ -57,15 +57,7 @@ export class PermissionManager {
       };
     }
 
-    // 自動拒否リストのチェック
-    if (settings.autoReject.includes(toolCall.toolName)) {
-      return {
-        allowed: false,
-        requiresApproval: false,
-        reason: `ツール '${toolCall.toolName}' は自動拒否リストに登録されています`,
-        securityResult,
-      };
-    }
+    // 自動拒否リストのチェックは廃止されました
 
     // 永続許可リストのチェック
     if (settings.permanentlyAllowed.includes(toolCall.toolName)) {
@@ -132,16 +124,7 @@ export class PermissionManager {
     }
   }
 
-  /**
-   * ツールを自動拒否リストに追加
-   */
-  async addToAutoReject(toolName: string): Promise<void> {
-    const settings = await this.loadSettings();
-    if (!settings.autoReject.includes(toolName)) {
-      settings.autoReject.push(toolName);
-      await this.saveSettings(settings);
-    }
-  }
+
 
   /**
    * 永続許可リストからツールを削除
@@ -155,17 +138,7 @@ export class PermissionManager {
     }
   }
 
-  /**
-   * 自動拒否リストからツールを削除
-   */
-  async removeFromAutoReject(toolName: string): Promise<void> {
-    const settings = await this.loadSettings();
-    const index = settings.autoReject.indexOf(toolName);
-    if (index !== -1) {
-      settings.autoReject.splice(index, 1);
-      await this.saveSettings(settings);
-    }
-  }
+
 
   /**
    * 権限レベルを変更

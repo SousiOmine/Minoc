@@ -130,21 +130,73 @@ export class SecurityManager {
             blockedReason: `危険なファイルパスへの書き込みが検出されました: ${path}`,
           };
         }
-        break;
+        // ファイル書き込みは中リスクとして扱う
+        return {
+          allowed: true,
+          riskLevel: 'medium',
+          warning: settings.showSecurityWarnings 
+            ? 'ファイルの書き込み操作です'
+            : undefined,
+        };
       }
       case 'create_directory': {
         const path = parameters.path as string;
         if (path && this.isDangerousPath(path)) {
           return {
             allowed: false,
-            riskLevel: 'medium',
+            riskLevel: 'high',
             blockedReason: `危険なパスでのディレクトリ作成が検出されました: ${path}`,
           };
         }
-        break;
+        // ディレクトリ作成は中リスクとして扱う
+        return {
+          allowed: true,
+          riskLevel: 'medium',
+          warning: settings.showSecurityWarnings 
+            ? 'ディレクトリの作成操作です'
+            : undefined,
+        };
+      }
+      case 'read_file': {
+        // ファイル読み込みも低めの中リスクとして扱う（機密情報にアクセスする可能性）
+        return {
+          allowed: true,
+          riskLevel: 'medium',
+          warning: settings.showSecurityWarnings 
+            ? 'ファイルの読み込み操作です'
+            : undefined,
+        };
+      }
+      case 'search_files': {
+        // ファイル検索も中リスクとして扱う
+        return {
+          allowed: true,
+          riskLevel: 'medium',
+          warning: settings.showSecurityWarnings 
+            ? 'ファイル検索操作です'
+            : undefined,
+        };
+      }
+      case 'list_directory': {
+        // ディレクトリ一覧表示は低リスク
+        return {
+          allowed: true,
+          riskLevel: 'low',
+        };
+      }
+      case 'read_files': {
+        // 複数ファイル読み込みは中リスク
+        return {
+          allowed: true,
+          riskLevel: 'medium',
+          warning: settings.showSecurityWarnings 
+            ? '複数ファイルの読み込み操作です'
+            : undefined,
+        };
       }
     }
 
+    // デフォルトは低リスク
     return {
       allowed: true,
       riskLevel: 'low',

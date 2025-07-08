@@ -6,6 +6,7 @@ import { ConfigManager } from '../config/manager.ts';
 import { ReadFileTool, WriteToFileTool, CreateDirectoryTool, SearchFilesTool, ListDirectoryTool } from './file_tools.ts';
 import { ExecuteCommandTool } from './command_tool.ts';
 import { ReadMultipleFilesTool } from './file_tools.ts';
+import { RespondToUserTool } from './response_tool.ts';
 
 /**
  * XML形式のツール呼び出しをパースする結果
@@ -41,6 +42,7 @@ export class ToolExecutor {
       new ListDirectoryTool(),
       new ExecuteCommandTool(),
       new ReadMultipleFilesTool(),
+      new RespondToUserTool(),
     ];
 
     for (const tool of defaultTools) {
