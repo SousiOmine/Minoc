@@ -158,7 +158,7 @@ class MinocApp {
 
         const response = await this.progressManager.withProgress(
           'LLMから応答を取得中',
-          () => this.openaiClient!.chatCompletion(session.systemPrompt, session.messages)
+          () => this.openaiClient!.chatCompletion(session.messages)
         );
         // LLMからの出力をassistantとして記録
         await this.historyRecorder.recordMessage(this.currentSessionId!, {

@@ -31,13 +31,20 @@ export class HistoryRecorder implements IHistoryRecorder {
       sessionId,
       timestamp,
       model,
-      systemPrompt,
       messages: [],
       metadata: {
         model,
       },
     };
 
+    // システムプロンプトをsystemロールのメッセージとして記録
+    const systemMessage: Message = {
+      role: 'system',
+      content: systemPrompt,
+      timestamp,
+    };
+
+    session.messages.push(systemMessage);
     this.activeSessions.set(sessionId, session);
     
     return sessionId;

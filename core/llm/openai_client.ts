@@ -59,11 +59,10 @@ export class OpenAIClient {
    * チャット完了API呼び出し
    */
   async chatCompletion(
-    systemPrompt: string,
     messages: Message[],
     stream = false
   ): Promise<ChatCompletionResponse> {
-    const openaiMessages = this.convertMessages(systemPrompt, messages);
+    const openaiMessages = this.convertMessages(messages);
 
     return this.executeWithRetry(async () => {
       try {
@@ -122,22 +121,22 @@ export class OpenAIClient {
   /**
    * メッセージ形式をOpenAI形式に変換
    */
-  private convertMessages(systemPrompt: string, messages: Message[]): Array<{
+  private convertMessages(messages: Message[]): Array<{
     role: 'system' | 'user' | 'assistant';
     content: string;
   }> {
     const openaiMessages: Array<{
       role: 'system' | 'user' | 'assistant';
       content: string;
-    }> = [
-      {
-        role: 'system',
-        content: systemPrompt,
-      },
-    ];
+    }> = [];
 
     for (const message of messages) {
-      if (message.role === 'user') {
+      if (message.role === 'system') {
+        openaiMessages.push({
+          role: 'system',
+          content: message.content,
+        });
+      } else if (message.role === 'user') {
         openaiMessages.push({
           role: 'user',
           content: `<user_query>${message.content}</user_query>`,

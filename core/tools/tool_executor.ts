@@ -89,10 +89,13 @@ export class ToolExecutor {
 
       for (const match of paramMatches) {
         const paramName = match[1];
-        const paramValue = match[2].trim();
-
-        // パラメータ値の型変換を試行
-        parameters[paramName] = this.parseParameterValue(paramValue);
+        const rawValue = match[2].trim();
+        // contentパラメータは生の文字列をそのまま使用し、その他は型変換を試行
+        if (paramName === 'content') {
+          parameters[paramName] = rawValue;
+        } else {
+          parameters[paramName] = this.parseParameterValue(rawValue);
+        }
       }
 
       // 特別な処理：pathsパラメータ（複数ファイル読み込み用）

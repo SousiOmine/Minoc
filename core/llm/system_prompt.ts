@@ -156,7 +156,7 @@ export const SYSTEM_PROMPT_TOOLS = `
 </tool_call>
 \`\`\`
 
-**write_to_file**: ファイルに内容を書き込み（危険な操作）
+**write_to_file**: テキストファイルに内容を書き込み
 - path: 書き込み先ファイルのパス
 - content: 書き込む内容
 - overwrite: 上書きを許可するかどうか（オプション、デフォルト: true）

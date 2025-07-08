@@ -32,7 +32,6 @@ export interface SessionHistory {
   sessionId: string;
   timestamp: string;
   model: string;
-  systemPrompt: string;
   messages: Message[];
   metadata: SessionMetadata;
 }
