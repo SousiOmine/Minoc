@@ -122,13 +122,14 @@ export class SearchFilesTool extends BaseTool {
   override readonly name = 'search_files';
   override readonly description = 'ファイルパターンに基づいてファイルを検索します';
   override readonly requiredParameters = ['pattern'];
-  override readonly optionalParameters = ['directory', 'maxResults'];
+  override readonly optionalParameters = ['directory', 'maxResults', 'searchContent'];
 
   override async execute(parameters: ToolParameters, context?: ToolExecutionContext): Promise<ToolResult> {
     try {
       const pattern = this.getParameter<string>(parameters, 'pattern');
       const directory = this.getOptionalParameter<string>(parameters, 'directory', '.') || '.';
       const maxResults = this.getOptionalParameter<number>(parameters, 'maxResults', 100) || 100;
+      const searchContent = this.getOptionalParameter<boolean>(parameters, 'searchContent', false) ?? false;
       
       const workingDir = context?.workingDirectory || Deno.cwd();
       const baseDir = directory === '.' ? workingDir : join(workingDir, directory);
@@ -140,9 +141,9 @@ export class SearchFilesTool extends BaseTool {
       const results: Array<{ path: string; size: number; modified: Date }> = [];
       
       // 簡単なglob風のパターンマッチング
-      const regex = this.globToRegex(pattern);
+      const regex = searchContent ? new RegExp(pattern, 'i') : this.globToRegex(pattern);
       
-      await this.searchRecursive(baseDir, regex, results, maxResults, workingDir);
+      await this.searchRecursive(baseDir, regex, results, maxResults, workingDir, searchContent);
 
       return this.success(
         { 
@@ -162,11 +163,12 @@ export class SearchFilesTool extends BaseTool {
    * 再帰的にファイルを検索
    */
   private async searchRecursive(
-    dir: string, 
-    regex: RegExp, 
+    dir: string,
+    regex: RegExp,
     results: Array<{ path: string; size: number; modified: Date }>,
     maxResults: number,
-    baseDir: string
+    baseDir: string,
+    searchContent: boolean
   ): Promise<void> {
     if (results.length >= maxResults) return;
 
@@ -177,18 +179,29 @@ export class SearchFilesTool extends BaseTool {
         const fullPath = join(dir, entry.name);
         
         if (entry.isDirectory) {
-          await this.searchRecursive(fullPath, regex, results, maxResults, baseDir);
-        } else if (entry.isFile && regex.test(entry.name)) {
-          try {
-            const stat = await Deno.stat(fullPath);
-            const relativePath = fullPath.replace(baseDir, '').replace(/^[/\\]/, '');
-            results.push({
-              path: relativePath,
-              size: stat.size,
-              modified: stat.mtime || new Date(),
-            });
-          } catch {
-            // アクセスできないファイルは無視
+          await this.searchRecursive(fullPath, regex, results, maxResults, baseDir, searchContent);
+        } else if (entry.isFile) {
+          // searchContent=true の場合はファイル内容を読み込んで検索
+          if (searchContent) {
+            try {
+              const content = await Deno.readTextFile(fullPath);
+              if (regex.test(content)) {
+                const stat = await Deno.stat(fullPath);
+                const relativePath = fullPath.replace(baseDir, '').replace(/^[/\\]/, '');
+                results.push({ path: relativePath, size: stat.size, modified: stat.mtime || new Date() });
+              }
+            } catch {
+              // アクセスできないファイルは無視
+            }
+          } else if (regex.test(entry.name)) {
+            // ファイル名マッチ
+            try {
+              const stat = await Deno.stat(fullPath);
+              const relativePath = fullPath.replace(baseDir, '').replace(/^[/\\]/, '');
+              results.push({ path: relativePath, size: stat.size, modified: stat.mtime || new Date() });
+            } catch {
+              // アクセスできないファイルは無視
+            }
           }
         }
       }

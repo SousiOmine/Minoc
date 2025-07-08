@@ -119,6 +119,9 @@ export const SYSTEM_PROMPT_TOOLS = `
 <paths>
 <path>file1.ts</path>
 <path>file2.ts</path>
+<path>file3.ts</path>
+<path>file4.ts</path>
+<path>file5.ts</path>
 </paths>
 </read_files>
 </tool_call>
@@ -128,6 +131,7 @@ export const SYSTEM_PROMPT_TOOLS = `
 - pattern: 検索パターン（glob形式）
 - directory: 検索対象ディレクトリ（オプション、デフォルト: .）
 - maxResults: 最大結果数（オプション、デフォルト: 100）
+- searchContent: ファイル内容を検索対象とするかどうか（オプション、デフォルト: false）
 
 【例】ファイルを検索する場合：
 \`\`\`xml
@@ -136,6 +140,18 @@ export const SYSTEM_PROMPT_TOOLS = `
 <pattern>*.ts</pattern>
 <directory>src</directory>
 <maxResults>50</maxResults>
+</search_files>
+</tool_call>
+\`\`\`
+
+【例】ファイル内容を検索する場合：
+\`\`\`xml
+<tool_call>
+<search_files>
+<pattern>TODO</pattern>
+<searchContent>true</searchContent>
+<directory>src</directory>
+<maxResults>30</maxResults>
 </search_files>
 </tool_call>
 \`\`\`
