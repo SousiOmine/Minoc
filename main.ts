@@ -68,6 +68,13 @@ class MinocApp {
   async cleanupJsonBackups(): Promise<void> {
     await this.sessionManager.cleanupJsonBackups();
   }
+ 
+  /**
+   * 全許可モードを設定する
+   */
+  public setSkipAllApprovals(enabled: boolean): void {
+    this.toolExecutor.getPermissionManager().setSkipAllApprovals(enabled);
+  }
 }
 
 /**
@@ -84,7 +91,11 @@ async function main() {
     .option('-k, --api-key <key:string>', 'OpenAI APIキー')
     .option('--init', '設定を初期化')
     .option('--cleanup-json', 'JSONバックアップファイルを削除')
+    .option('--allow-all-permissions', 'すべての権限要求をスキップして全て許可する')
     .action(async (options) => {
+      if (options.allowAllPermissions) {
+        app.setSkipAllApprovals(true);
+      }
       if (options.init) {
         await app.initialize();
         return;

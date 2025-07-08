@@ -20,6 +20,8 @@ export class PermissionManager {
   private configManager: ConfigManager;
   private securityManager: SecurityManager;
   private permissionSettings: PermissionSettings | null = null;
+  // 全許可モードのフラグ
+  private skipAllApprovals: boolean = false;
 
   constructor(configManager: ConfigManager) {
     this.configManager = configManager;
@@ -53,6 +55,15 @@ export class PermissionManager {
         allowed: false,
         requiresApproval: false,
         reason: securityResult.blockedReason,
+        securityResult,
+      };
+    }
+
+    // 全許可モードの場合、承認不要で許可
+    if (this.skipAllApprovals) {
+      return {
+        allowed: true,
+        requiresApproval: false,
         securityResult,
       };
     }
@@ -169,5 +180,12 @@ export class PermissionManager {
    */
   async getCurrentSettings(): Promise<PermissionSettings> {
     return this.loadSettings();
+  }
+  
+  /**
+   * 全許可モードを設定する
+   */
+  public setSkipAllApprovals(enabled: boolean): void {
+    this.skipAllApprovals = enabled;
   }
 } 
