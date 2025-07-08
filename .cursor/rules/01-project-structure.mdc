@@ -7,45 +7,71 @@ Minoc（みのく）は、LLMがPC操作を通じてプログラミングや執�
 
 ## アーキテクチャ概要
 
-Minocは以下のモジュール構造を採用しています：
+Minocは以下のモジュラー構造を採用しています：
 
 ### 主要ディレクトリ構造
 
 ```
 Minoc/
-├── core/              # 基幹機能
-│   ├── llm/          # LLM統合（OpenAI Client、System Prompt）
-│   ├── tools/        # ツール定義・実行エンジン
-│   ├── history/      # 履歴管理システム
-│   ├── config/       # 設定管理（TOML形式）
-│   └── permission/   # 権限・セキュリティ管理
-├── cli/              # CLIインターフェース
-│   ├── commands/     # CLIコマンド実装
-│   ├── ui/          # ユーザーインターフェース（承認、進捗表示）
-│   └── prompt/       # プロンプト処理
-├── interfaces/       # 共通インターフェース定義
-└── [main.ts](mdc:main.ts)           # アプリケーションエントリーポイント
+├── cli/
+│   ├── commands/
+│   │   └── command_handler.ts
+│   ├── prompt/
+│   │   └── input_handler.ts
+│   └── ui/
+│       ├── approval.ts
+│       └── progress.ts
+├── core/
+│   ├── chat/
+│   │   └── chat_engine.ts
+│   ├── config/
+│   │   ├── manager.ts
+│   │   └── types.ts
+│   ├── history/
+│   │   └── history_recorder.ts
+│   ├── llm/
+│   │   ├── openai_client.ts
+│   │   └── system_prompt.ts
+│   ├── permission/
+│   │   ├── permission_manager.ts
+│   │   └── security_manager.ts
+│   ├── session/
+│   │   └── session_manager.ts
+│   └── tools/
+│       ├── base_tool.ts
+│       ├── command_tool.ts
+│       ├── file_tools.ts
+│       ├── response_tool.ts
+│       └── tool_executor.ts
+├── interfaces/
+│   ├── agent.ts
+│   ├── history.ts
+│   └── tool.ts
+├── deno.json
+├── LICENSE
+├── main.ts
+├── main_test.ts
+├── models.example.toml
+├── README.md
+├── requirements.md
+└── settings.example.toml
 ```
 
-### 重要な設計原則
+## 重要な設計原則
 
-1. **セキュリティファースト**: 全てのツール実行は権限チェックと承認システムを通過
-2. **履歴管理**: 全ての操作がJSON形式で記録・保存される
-3. **設定のTOML化**: 従来のJSON設定をより人間が読みやすいTOML形式に移行
-4. **モジュラー設計**: 各機能は独立したモジュールとして実装
+1. **セキュリティファースト**: 全てのツール実行は権限チェックと承認を通過
+2. **履歴管理**: 全ての操作がJSON形式で記録・保存
+3. **TOML設定**: 設定は`.minoc`ディレクトリ内のTOMLファイルで管理
+4. **モジュラー設計**: 各機能は独立モジュールで実装
 
-### エントリーポイント
+## エントリーポイント
 
-メインアプリケーションは[main.ts](mdc:main.ts)で定義される`MinocApp`クラスです。このクラスは：
+メインアプリケーションは[`main.ts`](mdc:main.ts)で定義される`MinocApp`クラスで、以下のコンポーネントを統合します：
 
-- 設定管理（[ConfigManager](mdc:core/config/manager.ts)）
-- ツール実行（[ToolExecutor](mdc:core/tools/tool_executor.ts)）
-- 履歴記録（[HistoryRecorder](mdc:core/history/history_recorder.ts)）
-- LLM統合（[OpenAIClient](mdc:core/llm/openai_client.ts)）
-
-これらの機能を統合して動作します。
-
-### 設定ファイル管理
+- [ConfigManager](mdc:core/config/manager.ts)
+- [ToolExecutor](mdc:core/tools/tool_executor.ts)
+- [HistoryRecorder](mdc:core/history/history_recorder.ts)
+- [OpenAIClient](mdc:core/llm/openai_client.ts)
 
 設定は実行ファイルと同階層の`.minoc`ディレクトリに保存されます：
 
