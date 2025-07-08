@@ -265,6 +265,22 @@ class MinocApp {
     };
 
     const result = await this.toolExecutor.executeTool(toolCall, context);
+
+    // stdout と stderr を最大 100 行に制限
+    if (toolCall.toolName === 'execute_command' && result.success && result.data && typeof (result.data as any).stdout === 'string') {
+      const data = result.data as any;
+      const stdoutLines = data.stdout.split('\n');
+      if (stdoutLines.length > 100) {
+        data.stdout = stdoutLines.slice(0, 100).join('\n') + '\n...[省略]...';
+      }
+      if (typeof data.stderr === 'string') {
+        const stderrLines = data.stderr.split('\n');
+        if (stderrLines.length > 100) {
+          data.stderr = stderrLines.slice(0, 100).join('\n') + '\n...[省略]...';
+        }
+      }
+    }
+
     await this.historyRecorder.recordMessage(this.currentSessionId, {
       role: 'user',
       content: `<tool_response>${JSON.stringify(result, null, 2)}</tool_response>`,
