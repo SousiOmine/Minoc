@@ -1,0 +1,46 @@
+name: 'Minoc GitHub Action'
+description: 'LLMエージェントによるPC操作支援をGitHub Actionsで実行'
+author: 'Minoc Team'
+
+inputs:
+  openai-api-key:
+    description: 'OpenAI APIキー'
+    required: true
+  model:
+    description: '使用するLLMモデル名'
+    required: false
+    default: 'gpt-4'
+  task:
+    description: '実行するタスクの説明'
+    required: false
+    default: ''
+
+outputs:
+  result:
+    description: 'タスクの実行結果'
+  session-id:
+    description: '実行セッションID'
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Setup Deno
+      uses: denoland/setup-deno@v1
+      with:
+        deno-version: v1.x
+
+    - name: Run Minoc
+      id: minoc
+      run: |
+        echo "🚀 Starting Minoc GitHub Action..."
+        deno run -A ${{ github.action_path }}/main.ts
+        echo "✅ Minoc execution completed"
+      shell: bash
+      env:
+        OPENAI_API_KEY: ${{ inputs.openai-api-key }}
+        MINOC_MODEL: ${{ inputs.model }}
+        MINOC_TASK: ${{ inputs.task }}
+
+branding:
+  icon: 'terminal'
+  color: 'blue'

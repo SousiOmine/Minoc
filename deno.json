@@ -2,12 +2,17 @@
   "name": "minoc",
   "version": "0.1.0",
   "description": "LLMエージェント - PC操作とツール呼び出し履歴の管理",
-  "main": "main.ts",
-  "exports": "./main.ts",
+  "workspace": [
+    "./apps/*",
+    "./packages/*"
+  ],
+  "main": "apps/cli/main.ts",
+  "exports": "./apps/cli/main.ts",
   "tasks": {
-    "dev": "deno run --allow-read --allow-write --allow-run --allow-net --allow-env main.ts",
-    "start": "deno run --allow-read --allow-write --allow-run --allow-net --allow-env main.ts",
-    "build": "deno compile --allow-read --allow-write --allow-run --allow-net --allow-env --output=dist/minoc main.ts",
+    "dev": "deno run --allow-read --allow-write --allow-run --allow-net --allow-env apps/cli/main.ts",
+    "start": "deno run --allow-read --allow-write --allow-run --allow-net --allow-env apps/cli/main.ts",
+    "build": "deno compile --allow-read --allow-write --allow-run --allow-net --allow-env --output=dist/minoc apps/cli/main.ts",
+    "build:github-action": "deno compile --allow-read --allow-write --allow-run --allow-net --allow-env --output=dist/minoc-action apps/github-action/main.ts",
     "install": "deno task build && echo バイナリファイル 'dist/minoc' を作成しました。このファイルをPATHに追加するか、適切な場所に移動してください。",
     "test": "deno test --allow-read --allow-write --allow-run --allow-net --allow-env",
     "fmt": "deno fmt",

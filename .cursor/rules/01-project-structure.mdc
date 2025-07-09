@@ -1,56 +1,58 @@
----
-alwaysApply: true
----
 # Minoc プロジェクト構造ガイド
 
-Minoc（みのく）は、LLMがPC操作を通じてプログラミングや執筆を行い、ツール呼び出し履歴の収集と分析を行うCLIアプリケーションです。
+Minoc（みのく）は、LLMがPC操作を通じてプログラミングや執筆を行い、ツール呼び出し履歴の収集と分析を行うアプリケーションスイートです。
 
 ## アーキテクチャ概要
 
-Minocは以下のモジュラー構造を採用しています：
+Minocは**モノレポ構成**を採用し、複数のアプリケーション（CLI、GitHub Actions）で共通のビジネスロジックを効率的に共有しています：
 
 ### 主要ディレクトリ構造
 
 ```
 Minoc/
-├── cli/
-│   ├── commands/
-│   │   └── command_handler.ts
-│   ├── prompt/
-│   │   └── input_handler.ts
-│   └── ui/
-│       ├── approval.ts
-│       └── progress.ts
-├── core/
-│   ├── chat/
-│   │   └── chat_engine.ts
-│   ├── config/
-│   │   ├── manager.ts
-│   │   └── types.ts
-│   ├── history/
-│   │   └── history_recorder.ts
-│   ├── llm/
-│   │   ├── openai_client.ts
-│   │   └── system_prompt.ts
-│   ├── permission/
-│   │   ├── permission_manager.ts
-│   │   └── security_manager.ts
-│   ├── session/
-│   │   └── session_manager.ts
-│   └── tools/
-│       ├── base_tool.ts
-│       ├── command_tool.ts
-│       ├── file_tools.ts
-│       ├── response_tool.ts
-│       └── tool_executor.ts
-├── interfaces/
-│   ├── agent.ts
-│   ├── history.ts
-│   └── tool.ts
-├── deno.json
+├── apps/                          # アプリケーション層
+│   ├── cli/                       # CLIアプリケーション
+│   │   ├── main.ts               # CLIエントリーポイント
+│   │   ├── main_test.ts          # CLIテスト
+│   │   ├── commands/
+│   │   │   └── command_handler.ts
+│   │   ├── prompt/
+│   │   │   └── input_handler.ts
+│   │   └── ui/
+│   │       ├── approval.ts
+│   │       └── progress.ts
+│   └── github-action/            # GitHub Actions用アプリ
+│       ├── main.ts               # GitHub Actions エントリーポイント
+│       └── action.yml            # GitHub Actions 定義ファイル
+├── packages/                      # 共有パッケージ層
+│   ├── core/                     # ビジネスロジック
+│   │   ├── chat/
+│   │   │   └── chat_engine.ts
+│   │   ├── config/
+│   │   │   ├── manager.ts
+│   │   │   └── types.ts
+│   │   ├── history/
+│   │   │   └── history_recorder.ts
+│   │   ├── llm/
+│   │   │   ├── openai_client.ts
+│   │   │   └── system_prompt.ts
+│   │   ├── permission/
+│   │   │   ├── permission_manager.ts
+│   │   │   └── security_manager.ts
+│   │   ├── session/
+│   │   │   └── session_manager.ts
+│   │   └── tools/
+│   │       ├── base_tool.ts
+│   │       ├── command_tool.ts
+│   │       ├── file_tools.ts
+│   │       ├── response_tool.ts
+│   │       └── tool_executor.ts
+│   └── interfaces/               # 型定義とインターフェース
+│       ├── agent.ts
+│       ├── history.ts
+│       └── tool.ts
+├── deno.json                     # ワークスペース設定
 ├── LICENSE
-├── main.ts
-├── main_test.ts
 ├── models.example.toml
 ├── README.md
 ├── requirements.md
@@ -59,19 +61,79 @@ Minoc/
 
 ## 重要な設計原則
 
-1. **セキュリティファースト**: 全てのツール実行は権限チェックと承認を通過
-2. **履歴管理**: 全ての操作がJSON形式で記録・保存
-3. **TOML設定**: 設定は`.minoc`ディレクトリ内のTOMLファイルで管理
-4. **モジュラー設計**: 各機能は独立モジュールで実装
+1. **モノレポ構成**: 複数のアプリケーションで共通ロジックを効率的に共有
+2. **セキュリティファースト**: 全てのツール実行は権限チェックと承認を通過
+3. **履歴管理**: 全ての操作がJSON形式で記録・保存
+4. **TOML設定**: 設定は`.minoc`ディレクトリ内のTOMLファイルで管理
+5. **モジュラー設計**: 各機能は独立モジュールで実装
 
-## エントリーポイント
+## アプリケーション構成
 
-メインアプリケーションは[`main.ts`](mdc:main.ts)で定義される`MinocApp`クラスで、以下のコンポーネントを統合します：
+### CLIアプリケーション (`apps/cli/`)
 
-- [ConfigManager](mdc:core/config/manager.ts)
-- [ToolExecutor](mdc:core/tools/tool_executor.ts)
-- [HistoryRecorder](mdc:core/history/history_recorder.ts)
-- [OpenAIClient](mdc:core/llm/openai_client.ts)
+メインのCLIアプリケーションは[`apps/cli/main.ts`](mdc:apps/cli/main.ts)で定義される`MinocApp`クラスで、以下のコンポーネントを統合します：
+
+- [ConfigManager](mdc:packages/core/config/manager.ts)
+- [ToolExecutor](mdc:packages/core/tools/tool_executor.ts)
+- [HistoryRecorder](mdc:packages/core/history/history_recorder.ts)
+- [OpenAIClient](mdc:packages/core/llm/openai_client.ts)
+
+### GitHub Actions用アプリ (`apps/github-action/`)
+
+GitHub Actions環境で実行される[`apps/github-action/main.ts`](mdc:apps/github-action/main.ts)で定義される`MinocGitHubAction`クラスで、CI/CD環境での自動化タスクを実行します。
+
+## 共有パッケージ構成
+
+### Core パッケージ (`packages/core/`)
+
+アプリケーション間で共有されるビジネスロジック：
+
+- **chat/**: LLMとの対話処理
+- **config/**: 設定ファイル管理
+- **history/**: セッション履歴管理
+- **llm/**: LLMクライアント（OpenAI等）
+- **permission/**: 権限・セキュリティ管理
+- **session/**: セッション管理
+- **tools/**: ツール実行エンジン
+
+### Interfaces パッケージ (`packages/interfaces/`)
+
+型定義とインターフェース：
+
+- **agent.ts**: LLMエージェント設定の型定義
+- **history.ts**: 履歴管理の型定義
+- **tool.ts**: ツール関連の型定義
+
+## ワークスペース設定
+
+`deno.json`でワークスペース設定を定義：
+
+```json
+{
+  "workspace": [
+    "./apps/*",
+    "./packages/*"
+  ]
+}
+```
+
+## タスク定義
+
+```bash
+# CLI開発実行
+deno task dev
+
+# CLIビルド
+deno task build
+
+# GitHub Actions用ビルド
+deno task build:github-action
+
+# テスト実行
+deno task test
+```
+
+## 設定ディレクトリ
 
 設定は実行ファイルと同階層の`.minoc`ディレクトリに保存されます：
 
@@ -84,5 +146,18 @@ Minoc/
 │   ├── security.toml      # セキュリティ設定
 │   └── debug.toml         # デバッグ設定
 ├── history/sessions/      # セッション履歴（JSON）
+└── logs/                  # ログファイル
+```
+
+## 拡張性
+
+この構成により、将来的に以下のような新しいアプリケーションを容易に追加できます：
+
+- `apps/web/`: Webアプリケーション
+- `apps/desktop/`: デスクトップアプリケーション
+- `apps/api/`: REST APIサーバー
+
+全て`packages/core`と`packages/interfaces`の共通ロジックを活用して開発できます。
+
 └── logs/                  # ログファイル
 ```
