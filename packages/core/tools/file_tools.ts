@@ -138,7 +138,7 @@ export class FindFilesByNameTool extends BaseTool {
   override readonly name = 'find_files_by_name';
   override readonly description = 'ファイル名に基づいてファイルを検索します（拡張子やキーワードで絞り込み可能）';
   override readonly requiredParameters = [];
-  override readonly optionalParameters = ['directory', 'extension', 'nameContains', 'maxResults', 'includeHidden'];
+  override readonly optionalParameters = ['directory', 'fileExtensions', 'nameContains', 'maxResults', 'includeHidden'];
 
   override async execute(
     parameters: ToolParameters,
@@ -146,13 +146,13 @@ export class FindFilesByNameTool extends BaseTool {
   ): Promise<ToolResult> {
     try {
       const directory = this.getOptionalParameter<string>(parameters, 'directory', '.') || '.';
-      const extension = this.getOptionalParameter<string>(parameters, 'extension');
+      const fileExtensions = this.getOptionalParameter<string[]>(parameters, 'fileExtensions');
       const nameContains = this.getOptionalParameter<string>(parameters, 'nameContains');
       const maxResults = this.getOptionalParameter<number>(parameters, 'maxResults', 100) || 100;
       const includeHidden = this.getOptionalParameter<boolean>(parameters, 'includeHidden', false) ?? false;
 
-      if (!extension && !nameContains) {
-        return this.error('検索条件として extension または nameContains のいずれかを指定してください');
+      if ((!fileExtensions || fileExtensions.length === 0) && !nameContains) {
+        return this.error('検索条件として fileExtensions または nameContains のいずれかを指定してください');
       }
 
       const workingDir = context?.workingDirectory || Deno.cwd();
@@ -169,7 +169,7 @@ export class FindFilesByNameTool extends BaseTool {
         results,
         maxResults,
         workingDir,
-        extension,
+        fileExtensions,
         nameContains,
         includeHidden,
       );
@@ -177,7 +177,7 @@ export class FindFilesByNameTool extends BaseTool {
       return this.success(
         {
           directory,
-          extension,
+          fileExtensions,
           nameContains,
           matches: results.slice(0, maxResults),
           totalMatches: results.length,
@@ -199,7 +199,7 @@ export class FindFilesByNameTool extends BaseTool {
     results: Array<{ path: string; size: number; modified: Date }>,
     maxResults: number,
     baseDir: string,
-    extension?: string,
+    fileExtensions?: string[],
     nameContains?: string,
     includeHidden?: boolean,
   ): Promise<void> {
@@ -222,7 +222,7 @@ export class FindFilesByNameTool extends BaseTool {
             results,
             maxResults,
             baseDir,
-            extension,
+            fileExtensions,
             nameContains,
             includeHidden,
           );
@@ -230,10 +230,12 @@ export class FindFilesByNameTool extends BaseTool {
           let matches = true;
 
           // 拡張子チェック
-          if (extension) {
-            const fileExt = entry.name.split('.').pop()?.toLowerCase();
-            const searchExt = extension.startsWith('.') ? extension.slice(1).toLowerCase() : extension.toLowerCase();
-            if (fileExt !== searchExt) {
+          if (fileExtensions && fileExtensions.length > 0) {
+            const fileExt = entry.name.split('.').pop()?.toLowerCase() || '';
+            const searchExts = fileExtensions.map(ext => 
+              ext.startsWith('.') ? ext.slice(1).toLowerCase() : ext.toLowerCase()
+            );
+            if (!searchExts.includes(fileExt)) {
               matches = false;
             }
           }
