@@ -164,12 +164,20 @@ export class SecurityManager {
           warning: settings.showSecurityWarnings ? 'ファイルの読み込み操作です' : undefined,
         };
       }
-      case 'search_files': {
-        // ファイル検索も中リスクとして扱う
+      case 'find_files_by_name': {
+        // ファイル名検索は中リスクとして扱う
         return {
           allowed: true,
           riskLevel: 'medium',
-          warning: settings.showSecurityWarnings ? 'ファイル検索操作です' : undefined,
+          warning: settings.showSecurityWarnings ? 'ファイル名検索操作です' : undefined,
+        };
+      }
+      case 'search_content_in_files': {
+        // ファイル内容検索は中リスクとして扱う
+        return {
+          allowed: true,
+          riskLevel: 'medium',
+          warning: settings.showSecurityWarnings ? 'ファイル内容検索操作です' : undefined,
         };
       }
       case 'list_directory': {

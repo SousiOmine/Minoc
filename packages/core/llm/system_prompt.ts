@@ -30,8 +30,7 @@ async function getCurrentDirectoryInfo(): Promise<string> {
           const stat = await Deno.stat(fullPath);
           const type = entry.isDirectory ? 'ディレクトリ' : 'ファイル';
           const size = entry.isFile ? ` (${formatBytes(stat.size)})` : '';
-          const modified = stat.mtime ? ` - 更新日時: ${stat.mtime.toLocaleString('ja-JP')}` : '';
-          entries.push(`  - ${entry.name} [${type}]${size}${modified}`);
+          entries.push(`  - ${entry.name} [${type}]${size}`);
         } catch {
           // アクセスできないファイルはスキップ
           entries.push(`  - ${entry.name} [アクセス不可]`);
@@ -45,6 +44,7 @@ async function getCurrentDirectoryInfo(): Promise<string> {
     return `## 現在の実行環境情報
 
 **現在時刻**: ${currentTime}
+**OS**: ${Deno.build.os}
 **現在のディレクトリ**: ${currentPath}
 
 **ディレクトリ内容**:
@@ -55,6 +55,7 @@ ${filesInfo}
     return `## 現在の実行環境情報
 
 **現在時刻**: ${new Date().toLocaleString('ja-JP')}
+**OS**: ${Deno.build.os}
 **ディレクトリ情報**: 取得エラー - ${error instanceof Error ? error.message : String(error)}
 
 ---`;
@@ -150,7 +151,7 @@ export const SYSTEM_PROMPT_TOOLS = `
 \`\`\`
 
 **read_files**: 複数のファイルの内容を読み込み
-- paths: 読み込むファイルパスのリスト
+- paths: 読み込むファイルパスのリスト 最大5件
 
 【例】複数のファイルを読み込む場合：
 \`\`\`xml
@@ -165,32 +166,72 @@ export const SYSTEM_PROMPT_TOOLS = `
 </tool_call>
 \`\`\`
 
-**search_files**: ファイルパターンに基づいてファイルを検索
-- pattern: 検索パターン（glob形式）
+**find_files_by_name**: ファイル名に基づいてファイルを検索（拡張子リストやキーワードで絞り込み可能、サブディレクトリも検索、最大50件）
 - directory: 検索対象ディレクトリ（オプション、デフォルト: .）
-- maxResults: 最大結果数（オプション、デフォルト: 100）
-- searchContent: ファイル内容を検索対象とするかどうか（オプション、デフォルト: false）
+- fileExtensions: 検索対象の拡張子リスト（オプション、例: ["ts", ".js"]）
+- nameContains: ファイル名に含まれるキーワード（オプション）
+- includeHidden: 隠しファイルを含めるかどうか（オプション、デフォルト: false）
+- recursive: サブディレクトリを含めるかどうか（オプション、デフォルト: true）
 
-【例】ファイルを検索する場合：
+【例】TypeScriptファイルを検索する場合：
 \`\`\`xml
 <tool_call>
-<search_files>
-<pattern>*.js</pattern>
-<directory>lib</directory>
-<maxResults>20</maxResults>
-</search_files>
+<find_files_by_name>
+<fileExtensions>["ts"]</fileExtensions>
+<directory>src</directory>
+</find_files_by_name>
 </tool_call>
 \`\`\`
 
-【例】ファイル内容を検索する場合：
+【例】名前に"config"を含むファイルを検索する場合：
 \`\`\`xml
 <tool_call>
-<search_files>
-<pattern>TODO</pattern>
-<searchContent>true</searchContent>
+<find_files_by_name>
+<nameContains>config</nameContains>
+<directory>.</directory>
+</find_files_by_name>
+</tool_call>
+\`\`\`
+
+【例】複数の拡張子を指定し、名前にキーワードを含むファイルを検索する場合：
+\`\`\`xml
+<tool_call>
+<find_files_by_name>
+<directory>src/components</directory>
+<fileExtensions>["ts", "tsx"]</fileExtensions>
+<nameContains>view</nameContains>
+</find_files_by_name>
+</tool_call>
+\`\`\`
+
+**search_content_in_files**: ファイルの内容から指定された文字列を検索（最大50件 サブディレクトリは検索対象外）
+- searchText: 検索する文字列（必須）
+- directory: 検索対象ディレクトリ（オプション、デフォルト: .）
+- fileExtensions: 検索対象の拡張子リスト（オプション、例: ["ts", "js"]）
+- caseSensitive: 大文字小文字を区別するかどうか（オプション、デフォルト: false）
+- includeHidden: 隠しファイルを含めるかどうか（オプション、デフォルト: false）
+- isRegex: searchText を正規表現として扱うか（オプション、デフォルト: false）
+
+【例】TypeScriptファイル内でTODOコメントを検索する場合：
+\`\`\`xml
+<tool_call>
+<search_content_in_files>
+<searchText>TODO</searchText>
+<fileExtensions>["ts", "tsx"]</fileExtensions>
 <directory>src</directory>
-<maxResults>30</maxResults>
-</search_files>
+</search_content_in_files>
+</tool_call>
+\`\`\`
+
+【例】正規表現を使って複数のキーワード（OR条件）でログファイルを検索する場合：
+\`\`\`xml
+<tool_call>
+<search_content_in_files>
+<searchText>error|warn</searchText>
+<fileExtensions>["txt"]</fileExtensions>
+<directory>logs</directory>
+<isRegex>true</isRegex>
+</search_content_in_files>
 </tool_call>
 \`\`\`
 

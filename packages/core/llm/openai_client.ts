@@ -214,7 +214,7 @@ export class OpenAIClient {
 
     return {
       type: 'unknown',
-      message: '不明なエラーが発生しました',
+      message: `不明なエラーが発生しました: ${error instanceof Error ? error.message : String(error)}`,
       retryable: false,
     };
   }

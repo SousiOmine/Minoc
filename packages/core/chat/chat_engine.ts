@@ -141,8 +141,11 @@ export class ChatEngine {
           continue;
         }
       } catch (error) {
+        const errorMessage = (error && typeof error === 'object' && 'message' in error)
+          ? (error as { message: string }).message
+          : String(error);
         console.error(
-          `❌ LLMからの応答取得に失敗: ${error instanceof Error ? error.message : String(error)}`,
+          `❌ LLMからの応答取得に失敗: ${errorMessage}`,
         );
         break;
       }
@@ -237,9 +240,11 @@ export class ChatEngine {
       }
     }
 
+    // ツール実行結果をJSONで記録してLLMに詳細データを渡す
+    const payload = JSON.stringify(result);
     await this.historyRecorder.recordMessage(this.currentSessionId, {
       role: 'user',
-      content: `<tool_response>${JSON.stringify(result, null, 2)}</tool_response>`,
+      content: `<tool_response>${payload}</tool_response>`,
       timestamp: new Date().toISOString(),
     });
 

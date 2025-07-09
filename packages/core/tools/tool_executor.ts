@@ -10,13 +10,14 @@ import { ConfigManager } from '../config/manager.ts';
 // 基本ツールのインポート
 import {
   CreateDirectoryTool,
+  FindFilesByNameTool,
   ListDirectoryTool,
   ReadFileTool,
-  SearchFilesTool,
+  ReadMultipleFilesTool,
+  SearchContentInFilesTool,
   WriteToFileTool,
 } from './file_tools.ts';
 import { ExecuteCommandTool } from './command_tool.ts';
-import { ReadMultipleFilesTool } from './file_tools.ts';
 import { RespondToUserTool } from './response_tool.ts';
 
 /**
@@ -49,7 +50,8 @@ export class ToolExecutor {
       new ReadFileTool(),
       new WriteToFileTool(),
       new CreateDirectoryTool(),
-      new SearchFilesTool(),
+      new FindFilesByNameTool(),
+      new SearchContentInFilesTool(),
       new ListDirectoryTool(),
       new ExecuteCommandTool(),
       new ReadMultipleFilesTool(),

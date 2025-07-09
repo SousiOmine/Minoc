@@ -131,24 +131,29 @@ export class CreateDirectoryTool extends BaseTool {
 }
 
 /**
- * ファイル検索ツール
+ * ファイル名による検索ツール
+ * Globパターンの代わりに、より直感的な検索条件を使用
  */
-export class SearchFilesTool extends BaseTool {
-  override readonly name = 'search_files';
-  override readonly description = 'ファイルパターンに基づいてファイルを検索します';
-  override readonly requiredParameters = ['pattern'];
-  override readonly optionalParameters = ['directory', 'maxResults', 'searchContent'];
+export class FindFilesByNameTool extends BaseTool {
+  override readonly name = 'find_files_by_name';
+  override readonly description = 'ファイル名に基づいてファイルを検索します（拡張子やキーワードで絞り込み可能）';
+  override readonly requiredParameters = [];
+  override readonly optionalParameters = ['directory', 'extension', 'nameContains', 'maxResults', 'includeHidden'];
 
   override async execute(
     parameters: ToolParameters,
     context?: ToolExecutionContext,
   ): Promise<ToolResult> {
     try {
-      const pattern = this.getParameter<string>(parameters, 'pattern');
       const directory = this.getOptionalParameter<string>(parameters, 'directory', '.') || '.';
+      const extension = this.getOptionalParameter<string>(parameters, 'extension');
+      const nameContains = this.getOptionalParameter<string>(parameters, 'nameContains');
       const maxResults = this.getOptionalParameter<number>(parameters, 'maxResults', 100) || 100;
-      const searchContent =
-        this.getOptionalParameter<boolean>(parameters, 'searchContent', false) ?? false;
+      const includeHidden = this.getOptionalParameter<boolean>(parameters, 'includeHidden', false) ?? false;
+
+      if (!extension && !nameContains) {
+        return this.error('検索条件として extension または nameContains のいずれかを指定してください');
+      }
 
       const workingDir = context?.workingDirectory || Deno.cwd();
       const baseDir = directory === '.' ? workingDir : join(workingDir, directory);
@@ -159,37 +164,44 @@ export class SearchFilesTool extends BaseTool {
 
       const results: Array<{ path: string; size: number; modified: Date }> = [];
 
-      // 簡単なglob風のパターンマッチング
-      const regex = searchContent ? new RegExp(pattern, 'i') : this.globToRegex(pattern);
-
-      await this.searchRecursive(baseDir, regex, results, maxResults, workingDir, searchContent);
+      await this.findByNameRecursive(
+        baseDir,
+        results,
+        maxResults,
+        workingDir,
+        extension,
+        nameContains,
+        includeHidden,
+      );
 
       return this.success(
         {
-          pattern,
           directory,
+          extension,
+          nameContains,
           matches: results.slice(0, maxResults),
           totalMatches: results.length,
         },
-        `パターン '${pattern}' で ${results.length} 件のファイルが見つかりました`,
+        `検索条件で ${results.length} 件のファイルが見つかりました`,
       );
     } catch (error) {
       return this.error(
-        `ファイル検索エラー: ${error instanceof Error ? error.message : String(error)}`,
+        `ファイル名検索エラー: ${error instanceof Error ? error.message : String(error)}`,
       );
     }
   }
 
   /**
-   * 再帰的にファイルを検索
+   * 再帰的にファイル名で検索
    */
-  private async searchRecursive(
+  private async findByNameRecursive(
     dir: string,
-    regex: RegExp,
     results: Array<{ path: string; size: number; modified: Date }>,
     maxResults: number,
     baseDir: string,
-    searchContent: boolean,
+    extension?: string,
+    nameContains?: string,
+    includeHidden?: boolean,
   ): Promise<void> {
     if (results.length >= maxResults) return;
 
@@ -199,27 +211,41 @@ export class SearchFilesTool extends BaseTool {
 
         const fullPath = join(dir, entry.name);
 
+        // 隠しファイル・ディレクトリのチェック
+        if (!includeHidden && entry.name.startsWith('.')) {
+          continue;
+        }
+
         if (entry.isDirectory) {
-          await this.searchRecursive(fullPath, regex, results, maxResults, baseDir, searchContent);
+          await this.findByNameRecursive(
+            fullPath,
+            results,
+            maxResults,
+            baseDir,
+            extension,
+            nameContains,
+            includeHidden,
+          );
         } else if (entry.isFile) {
-          // searchContent=true の場合はファイル内容を読み込んで検索
-          if (searchContent) {
-            try {
-              const content = await Deno.readTextFile(fullPath);
-              if (regex.test(content)) {
-                const stat = await Deno.stat(fullPath);
-                const relativePath = fullPath.replace(baseDir, '').replace(/^[/\\]/, '');
-                results.push({
-                  path: relativePath,
-                  size: stat.size,
-                  modified: stat.mtime || new Date(),
-                });
-              }
-            } catch {
-              // アクセスできないファイルは無視
+          let matches = true;
+
+          // 拡張子チェック
+          if (extension) {
+            const fileExt = entry.name.split('.').pop()?.toLowerCase();
+            const searchExt = extension.startsWith('.') ? extension.slice(1).toLowerCase() : extension.toLowerCase();
+            if (fileExt !== searchExt) {
+              matches = false;
             }
-          } else if (regex.test(entry.name)) {
-            // ファイル名マッチ
+          }
+
+          // ファイル名部分マッチチェック
+          if (nameContains && matches) {
+            if (!entry.name.toLowerCase().includes(nameContains.toLowerCase())) {
+              matches = false;
+            }
+          }
+
+          if (matches) {
             try {
               const stat = await Deno.stat(fullPath);
               const relativePath = fullPath.replace(baseDir, '').replace(/^[/\\]/, '');
@@ -238,19 +264,164 @@ export class SearchFilesTool extends BaseTool {
       // アクセスできないディレクトリは無視
     }
   }
+}
+
+/**
+ * ファイル内容検索ツール
+ * ファイルの中身から特定の文字列を検索
+ */
+export class SearchContentInFilesTool extends BaseTool {
+  override readonly name = 'search_content_in_files';
+  override readonly description = 'ファイルの内容から指定された文字列を検索します（grepのような動作）';
+  override readonly requiredParameters = ['searchText'];
+  override readonly optionalParameters = ['directory', 'fileExtensions', 'maxResults', 'caseSensitive', 'includeHidden'];
+
+  override async execute(
+    parameters: ToolParameters,
+    context?: ToolExecutionContext,
+  ): Promise<ToolResult> {
+    try {
+      const searchText = this.getParameter<string>(parameters, 'searchText');
+      const directory = this.getOptionalParameter<string>(parameters, 'directory', '.') || '.';
+      const fileExtensions = this.getOptionalParameter<string[]>(parameters, 'fileExtensions');
+      const maxResults = this.getOptionalParameter<number>(parameters, 'maxResults', 100) || 100;
+      const caseSensitive = this.getOptionalParameter<boolean>(parameters, 'caseSensitive', false) ?? false;
+      const includeHidden = this.getOptionalParameter<boolean>(parameters, 'includeHidden', false) ?? false;
+
+      const workingDir = context?.workingDirectory || Deno.cwd();
+      const baseDir = directory === '.' ? workingDir : join(workingDir, directory);
+
+      if (!await exists(baseDir)) {
+        return this.error(`検索ディレクトリが見つかりません: ${directory}`);
+      }
+
+      const results: Array<{
+        path: string;
+        matches: Array<{ lineNumber: number; lineContent: string }>;
+        totalMatches: number;
+      }> = [];
+
+      await this.searchContentRecursive(
+        baseDir,
+        searchText,
+        results,
+        maxResults,
+        workingDir,
+        fileExtensions,
+        caseSensitive,
+        includeHidden,
+      );
+
+      const totalFiles = results.length;
+      const totalMatches = results.reduce((sum, result) => sum + result.totalMatches, 0);
+
+      return this.success(
+        {
+          searchText,
+          directory,
+          fileExtensions,
+          caseSensitive,
+          matches: results,
+          totalFiles,
+          totalMatches,
+        },
+        `"${searchText}" が ${totalFiles} 個のファイルで ${totalMatches} 件見つかりました`,
+      );
+    } catch (error) {
+      return this.error(
+        `コンテンツ検索エラー: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
+  }
 
   /**
-   * Globパターンを正規表現に変換
+   * 再帰的にファイル内容を検索
    */
-  private globToRegex(pattern: string): RegExp {
-    // エスケープ処理
-    let regex = pattern
-      .replace(/\./g, '\\.')
-      .replace(/\+/g, '\\+')
-      .replace(/\?/g, '.')
-      .replace(/\*/g, '.*');
+  private async searchContentRecursive(
+    dir: string,
+    searchText: string,
+    results: Array<{
+      path: string;
+      matches: Array<{ lineNumber: number; lineContent: string }>;
+      totalMatches: number;
+    }>,
+    maxResults: number,
+    baseDir: string,
+    fileExtensions?: string[],
+    caseSensitive?: boolean,
+    includeHidden?: boolean,
+  ): Promise<void> {
+    if (results.length >= maxResults) return;
 
-    return new RegExp(`^${regex}$`, 'i');
+    try {
+      for await (const entry of Deno.readDir(dir)) {
+        if (results.length >= maxResults) break;
+
+        const fullPath = join(dir, entry.name);
+
+        // 隠しファイル・ディレクトリのチェック
+        if (!includeHidden && entry.name.startsWith('.')) {
+          continue;
+        }
+
+        if (entry.isDirectory) {
+          await this.searchContentRecursive(
+            fullPath,
+            searchText,
+            results,
+            maxResults,
+            baseDir,
+            fileExtensions,
+            caseSensitive,
+            includeHidden,
+          );
+        } else if (entry.isFile) {
+          // 拡張子フィルタ
+          if (fileExtensions && fileExtensions.length > 0) {
+            const fileExt = entry.name.split('.').pop()?.toLowerCase();
+            const allowedExts = fileExtensions.map(ext => 
+              ext.startsWith('.') ? ext.slice(1).toLowerCase() : ext.toLowerCase()
+            );
+            if (!fileExt || !allowedExts.includes(fileExt)) {
+              continue;
+            }
+          }
+
+          try {
+            const content = await Deno.readTextFile(fullPath);
+            const lines = content.split('\n');
+            const fileMatches: Array<{ lineNumber: number; lineContent: string }> = [];
+
+            const searchTarget = caseSensitive ? searchText : searchText.toLowerCase();
+
+            for (let i = 0; i < lines.length; i++) {
+              const line = lines[i];
+              const searchLine = caseSensitive ? line : line.toLowerCase();
+
+              if (searchLine.includes(searchTarget)) {
+                fileMatches.push({
+                  lineNumber: i + 1,
+                  lineContent: line.trim(),
+                });
+              }
+            }
+
+            if (fileMatches.length > 0) {
+              const relativePath = fullPath.replace(baseDir, '').replace(/^[/\\]/, '');
+              results.push({
+                path: relativePath,
+                matches: fileMatches,
+                totalMatches: fileMatches.length,
+              });
+            }
+          } catch {
+            // 読み込めないファイル（バイナリファイルなど）は無視
+          }
+        }
+      }
+    } catch {
+      // アクセスできないディレクトリは無視
+    }
   }
 }
 
